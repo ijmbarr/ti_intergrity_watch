@@ -1,0 +1,6 @@
+lib/
+venv/
+data/raw/
+*.bat
+.ipynb_checkpoints
+.idea/

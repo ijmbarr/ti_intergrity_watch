@@ -1,5 +1,7 @@
-from cleaner import utils, csv_cleaner
+from __future__ import division
+from cleaner import utils, csv_cleaner, odt_cleaner, xlxs_cleaner, doc_cleaner, ods_cleaner
 import os
+
 
 def parse_row(row, download_to="../data/raw/"):
     """
@@ -17,19 +19,19 @@ def parse_row(row, download_to="../data/raw/"):
 
     if not os.path.exists(local_file_path):
         utils.download_file(url, local_file_path)
-        pass
+
     if link_format == "csv":
         table_df = csv_cleaner.try_to_parse_csv(local_file_path)
     elif link_format == "pdf":
         table_df = None
     elif link_format == "odt":
-        table_df = None
+        table_df = odt_cleaner.try_parse_odt(local_file_path)
     elif link_format == "doc":
-        table_df = None
+        table_df = doc_cleaner.try_parse_doc(local_file_path)
     elif link_format == "xlsx":
-        table_df = None
-    elif link_format == "odt":
-        table_df = None
+        table_df = xlxs_cleaner.try_parse_xlsx(local_file_path)
+    elif link_format == "ods":
+        table_df = ods_cleaner.try_parse_ods(local_file_path)
     else:
         raise Exception("Not sure how to parse {}...".format(local_file_path))
 

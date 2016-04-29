@@ -1,1 +1,5 @@
-from cleaner import csv_cleaner, utils, tests, clean
+import utils
+import csv_cleaner
+import tests
+import clean
+

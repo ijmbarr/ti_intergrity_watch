@@ -1,4 +1,4 @@
-
+from __future__ import division
 
 class FixupLine:
     def __init__(self, line):
@@ -58,7 +58,11 @@ class FixupTable:
                 fixed_table.append([line.line[i] for i in data_columns])
 
         self.fixed_table = fixed_table
-        self.meta_data = meta_data
+        self.meta_data = [e for l in meta_data for e in l.line
+                          if e != ""]
+
+    def fixed_table_text(self):
+        return "\n".join([",".join(line) for line in self.fixed_table])
 
     @staticmethod
     def remove_empty(line):
@@ -67,11 +71,16 @@ class FixupTable:
 
 class CSVFixup:
 
-    def __init__(self, file_name):
+    def __init__(self, file_name=None, raw_text=None):
 
-        with open(file_name, "rb") as f:
-            text = f.read().decode("latin-1").strip()
-            f.close()
+        if file_name is not None:
+            with open(file_name, "rb") as f:
+                text = f.read().decode("latin-1").strip()
+                f.close()
+        elif raw_text is not None:
+            text = raw_text
+        else:
+             raise Exception("Need to specify a file or raw text")
 
         self.raw = text
 

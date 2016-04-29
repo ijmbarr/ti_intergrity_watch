@@ -1,19 +1,23 @@
-import urllib
+from __future__ import division
+import urllib2
 
 
 def download_file(url, download_to):
     """
     Download files from url to download_to
     """
-    proxy = urllib.request.ProxyHandler({'http': 'thproxy.internet.point:8080',
-                                         'https': 'thproxy.internet.point:8080'})
-    opener = urllib.request.build_opener(proxy)
-    urllib.request.install_opener(opener)
-    urllib.request.urlretrieve(url, download_to)
+    # proxy = urllib.request.ProxyHandler({'http': 'thproxy.internet.point:8080',
+    #                                     'https': 'thproxy.internet.point:8080'})
+    # opener = urllib.request.build_opener(proxy)
+    # urllib.request.install_opener(opener)
+    # urllib.request.urlretrieve(url, download_to)
+    with open(download_to, 'wb') as f:
+        f.write(urllib2.urlopen(url).read())
+        f.close()
 
 
 def get_file_name(url):
-    download_to="../data/raw/"
+    download_to = "../data/raw/"
     link_format = url.split(".")[-1]
     file_name = url.split("/")[-1]
     local_file_path = download_to + file_name
@@ -40,7 +44,7 @@ def normalise(s):
     """
     Normalises string s
     """
-    to_replace =[
+    to_replace = [
         ("&", "and")
     ]
 
@@ -70,9 +74,5 @@ def find_column(cols, like_strings):
     Will throw an error if there is not exactly one found.
     """
     col = [x for x in cols if like(x, like_strings)]
-    assert(len(col) == 1)
+    assert (len(col) == 1)
     return col[0]
-
-
-
-

@@ -1,9 +1,10 @@
+from __future__ import division
 import os
 import re
-from io import StringIO
+from StringIO import StringIO
 
+from CSVFixup import CSVFixup
 from cleaner import utils
-
 import pandas as pd
 
 
@@ -14,7 +15,7 @@ def strip_trailing_commas(text):
     :return: str
     """
     min_commas = 1000
-    for n,line in enumerate(text.split("\r\n")):
+    for n, line in enumerate(text.split("\r\n")):
         min_commas = min(min_commas, len(line) - len(line.rstrip(",")))
 
     if min_commas == 0:
@@ -27,129 +28,155 @@ def strip_trailing_commas(text):
     return lines
 
 
-def try_to_parse_csv(local_file_path):
+def try_to_parse_csv(*args, **kargs):
     """
     Applies some standardistation to the format,
     then sends the CSV text into a template for
     parsing.
     """
-    with open(local_file_path, "rb") as f:
-        text = f.read().decode(encoding="latin-1").strip()
-        f.close()
+    fcsv = CSVFixup(*args, **kargs)
 
-    text = strip_trailing_commas(text)
+    inferred_structure = infer_structure(fcsv.tables)
 
-    # count how many rows to skip
-    for n, line in enumerate(text.split("\r\n")):
-        if "" not in line.split(",")[-1:]:
-            break
+    if inferred_structure == 1:
+        return try_to_parse_csv1(fcsv.tables)
+    elif inferred_structure == 2:
+        return try_to_parse_csv2(fcsv.tables)
 
-    df = pd.read_csv(StringIO(text),
-                     encoding="latin-1",
-                     header=n)
-    cols = list(df.columns)
-
-    # hack
-    if "Name" in cols:
-        df.rename(columns={"Name":"minister"}, inplace=True)
-        cols = list(df.columns)
-    elif "Name of Minister" in cols:
-        df.rename(columns={"Name of Minister":"minister"}, inplace=True)
-        cols = list(df.columns)
-
-    minister_col = [x for x in cols if utils.like(x, ["minister"])]
-
-    if len(minister_col) == 1:
-        return try_to_parse_csv1(df)
-    if len(minister_col) == 0:
-        return try_to_parse_csv2(text)
-
-    raise Exception("Too many minister columns...")
+    raise Exception("Not sure how to parse this table.")
 
 
-def try_to_parse_csv1(df):
+def fix_column_names(df):
+    df.rename(columns={
+        "Name": "minister",
+        "Name of Minister": "minister"
+    }, inplace=True)
+
+
+def infer_structure(tables):
+    for t in tables:
+        if not (len(t.fixed_table[0]) == 1):
+            attempt = pd.read_csv(StringIO(t.fixed_table_text()))
+            if attempt.columns.shape[0] == 4:
+                return 1
+            elif attempt.columns.shape[0] == 3:
+                return 2
+    return -1
+
+
+def try_to_parse_csv1(tables):
     """
     Try to parse csvs, assume the standard structure and
     small variations on this theme.
     """
-    cols = list(df.columns)
+    past_column_names = None
+    cleaned_tables = []
+    for table in tables:
+        if not (len(table.fixed_table[0]) == 1):
+            df = pd.read_csv(StringIO(table.fixed_table_text()))
+            fix_column_names(df)
 
-    minister_col = utils.find_column(cols, ["minister"])
-    date_col = utils.find_column(cols, ["date", "month"])
-    name_col = utils.find_column(cols, ["name of"])
-    purpose_col = utils.find_column(cols, ["purpose of"])
+            cols = list(df.columns)
 
-    # fix column names
-    old_cols = [minister_col, date_col, name_col, purpose_col]
-    new_names = ["minister", "date", "name", "purpose"]
-    df = df[old_cols]
-    df.rename(columns={o: n for o, n in zip(old_cols, new_names)},
-              inplace=True)
+            minister_col = utils.find_column(cols, ["minister"])
+            date_col = utils.find_column(cols, ["date", "month"])
+            name_col = utils.find_column(cols, ["name of"])
+            purpose_col = utils.find_column(cols, ["purpose of"])
 
-    # drop blank rows, and fill in minister's names where required
-    df.dropna(how="all", inplace=True)
-    if 0.05 < pd.isnull(df.minister).sum()/df.shape[0] < 1.0:
-        current_minister = df.minister.values[0]
-        for n, row in df.iterrows():
-            if pd.isnull(row.minister):
-                df.ix[n, "minister"] = current_minister
-            else:
-                current_minister = row.minister
+            # fix column names
+            old_cols = [minister_col, date_col, name_col, purpose_col]
+            new_names = ["minister", "date", "name", "purpose"]
+            df = df[old_cols]
+            df.rename(columns={o: n for o, n in zip(old_cols, new_names)},
+                      inplace=True)
 
-    # drop final 2 rows if they contains NaNs
-    if pd.isnull(df.loc[df.index[-1]]).any():
-        df.drop(df.index[-1], inplace=True)
+            # drop final 2 rows if they contains NaNs
+            if pd.isnull(df.loc[df.index[-1]][["name"]]).any():
+                df.drop(df.index[-1], inplace=True)
 
-    if pd.isnull(df.loc[df.index[-1]]).any():
-        df.drop(df.index[-1], inplace=True)
+            if pd.isnull(df.loc[df.index[-1]][["name"]]).any():
+                df.drop(df.index[-1], inplace=True)
 
-    return df
+            fill_in_blanks(df)
+
+            cleaned_tables.append(df)
+
+    return pd.concat(cleaned_tables)
 
 
-def try_to_parse_csv2(text):
+def try_to_parse_csv2(tables):
     """
     Try to parse csvs, assume the other structure and
     small variations on this theme.
     """
 
-    valid_substrings = [x for x in re.split(r"(,,+\r\n)(,,+\r\n)", text)
-                        if len(x) > 10 and x.count("\r\n") > 1]
+    cleaned_tables = []
+    for table in tables:
+        if not (len(table.fixed_table[0]) == 1):
+            df = pd.read_csv(StringIO(table.fixed_table_text()))
+            fix_column_names(df)
 
-    valid_dfs = []
-    for valid_substring in valid_substrings:
+            cols = list(df.columns)
 
-        valid_substring = strip_trailing_commas(valid_substring)
+            date_col = utils.find_column(cols, ["date", "month"])
+            name_col = utils.find_column(cols, ["name of"])
+            purpose_col = utils.find_column(cols, ["purpose of"])
 
-        lines = ""
-        potential_ministers = []
-        for line in valid_substring.split("\r\n"):
-            match1 = re.match(r'(\".*(MP|Minister of|Parliamentary Under-Secretary).*\")'
-                              r'|(.*(MP|Minister of|Parliamentary Under-Secretary).*,,)', line)
-            if match1:
-                potential_ministers.append(line[match1.start():match1.end()])
+            # fix column names
+            old_cols = [date_col, name_col, purpose_col]
+            new_names = ["date", "name", "purpose"]
+            df = df[old_cols]
+            df.rename(columns={o: n for o, n in zip(old_cols, new_names)},
+                      inplace=True)
+
+            df["minister"] = get_minister(table.meta_data)
+
+            fill_in_blanks(df)
+
+            cleaned_tables.append(df)
+
+    return pd.concat(cleaned_tables)
+
+
+def get_minister(lst):
+    minister_pattern1 = r'.*MP.*'
+
+    minister_guess = [e for e in lst
+                      if re.match(minister_pattern1, e)]
+
+    if len(minister_guess) == 1:
+        return minister_guess[0]
+
+
+    minister_pattern2 = (r'(\".*(Minister of|Parliamentary Under-Secretary|Secretary of|Minister for|Home Secretary).*\")'
+                        r'|(.*(Minister of|Parliamentary Under-Secretary|Secretary of|Minister for|Home Secretary).*)')
+    minister_guess = [e for e in lst
+                      if re.match(minister_pattern2, e)]
+
+    assert(len(minister_guess) == 1)
+
+    return minister_guess[0]
+
+
+def fill_in_blanks(df):
+    row = df.iloc[0]
+    current_minister = row.minister
+    current_date = row.date
+    current_purpose = row.purpose
+
+    for n, row in df.iterrows():
+        if not pd.isnull(row.name):
+            if pd.isnull(row.minister):
+                df.ix[n, "minister"] = current_minister
             else:
-                line_values = [v for v in line.split(",") if v != ""]
-                if len(line_values) == 3:
-                    lines += ",".join(line_values) + "\r\n"
+                current_minister = row.minister
 
-        assert(len(potential_ministers) == 1)
-        minister = potential_ministers[0].replace('"', "").replace(",", "")
+            if pd.isnull(row.date):
+                df.ix[n, "date"] = current_date
+            else:
+                current_date = row.date
 
-        df = pd.read_csv(StringIO(lines))
-        cols = df.columns
-
-        date_col = utils.find_column(cols, ["date", "month"])
-        name_col = utils.find_column(cols, ["name of"])
-        purpose_col = utils.find_column(cols, ["purpose of"])
-
-        # fix column names
-        old_cols = [date_col, name_col, purpose_col]
-        new_names = ["date", "name", "purpose"]
-        df = df[old_cols]
-        df.rename(columns={o:n for o,n in zip(old_cols, new_names)},
-                  inplace=True)
-        df["minister"] = minister
-
-        valid_dfs.append(df)
-
-    return pd.concat(valid_dfs)
+            if pd.isnull(row.purpose):
+                df.ix[n, "purpose"] = current_purpose
+            else:
+                current_purpose = row.purpose

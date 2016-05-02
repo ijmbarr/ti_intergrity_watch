@@ -76,3 +76,11 @@ def find_column(cols, like_strings):
     col = [x for x in cols if like(x, like_strings)]
     assert (len(col) == 1)
     return col[0]
+
+
+def format_for_csv(s):
+    if s is None:
+        return ""
+    if "," in s:
+        return '"' + s + '"'
+    return s

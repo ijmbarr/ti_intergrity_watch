@@ -55,7 +55,7 @@ class FixupTable:
             elif line.row == header_row:
                 fixed_table.append(self.remove_empty(line.line))
             elif line.row > header_row:
-                fixed_table.append([line.line[i] for i in data_columns])
+                fixed_table.append([try_to_get_index(line.line, i, "") for i in data_columns])
 
         self.fixed_table = fixed_table
         self.meta_data = [e for l in meta_data for e in l.line
@@ -138,3 +138,9 @@ class CSVFixup:
             table_record.append(current_table)
 
         self.tables = [FixupTable(t) for t in table_record]
+
+
+def try_to_get_index(lst, idx, default=None):
+    if idx > len(lst) - 1:
+        return default
+    return lst[idx]

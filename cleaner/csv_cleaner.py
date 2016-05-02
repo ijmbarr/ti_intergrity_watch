@@ -147,9 +147,9 @@ def get_minister(lst):
     if len(minister_guess) == 1:
         return minister_guess[0]
 
-
-    minister_pattern2 = (r'(\".*(Minister of|Parliamentary Under-Secretary|Secretary of|Minister for|Home Secretary).*\")'
-                        r'|(.*(Minister of|Parliamentary Under-Secretary|Secretary of|Minister for|Home Secretary).*)')
+    minister_pattern2 = (
+        r'(\".*(Minister of|Parliamentary Under-Secretary|Secretary of|Minister for|Home Secretary|Secretary to).*\")'
+        r'|(.*(Minister of|Parliamentary Under-Secretary|Secretary of|Minister for|Home Secretary|Secretary to).*)')
     minister_guess = [e for e in lst
                       if re.match(minister_pattern2, e)]
 

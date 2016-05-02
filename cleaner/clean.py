@@ -1,5 +1,5 @@
 from __future__ import division
-from cleaner import utils, csv_cleaner, odt_cleaner, xlxs_cleaner, doc_cleaner, ods_cleaner
+from cleaner import utils, csv_cleaner, odt_cleaner, xlxs_cleaner, doc_cleaner, ods_cleaner,pdf_cleaner
 import os
 
 
@@ -23,7 +23,7 @@ def parse_row(row, download_to="../data/raw/"):
     if link_format == "csv":
         table_df = csv_cleaner.try_to_parse_csv(local_file_path)
     elif link_format == "pdf":
-        table_df = None
+        table_df = pdf_cleaner.try_parse_pdf(local_file_path)
     elif link_format == "odt":
         table_df = odt_cleaner.try_parse_odt(local_file_path)
     elif link_format == "doc":

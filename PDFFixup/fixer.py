@@ -1,4 +1,8 @@
+from __future__ import division
+import math
 import pdfminer
+from collections import defaultdict
+
 
 from pdfminer.pdfparser import PDFParser
 from pdfminer.pdfdocument import PDFDocument
@@ -73,7 +77,21 @@ def page_to_table(page_layout):
     # match each character to a bounding rectangle where possible
     box_char_dict = {}
     for c in characters:
-        bbox = find_bounding_rectangle((c.bbox[0], c.bbox[1]), lines)
+        # choose the bounding box that occurs the majority of times for each of these:
+        bboxes = defaultdict(int)
+        l_x, l_y = c.bbox[0], c.bbox[1]
+        bbox_l = find_bounding_rectangle((l_x, l_y), lines)
+        bboxes[bbox_l] += 1
+
+        c_x, c_y = math.floor((c.bbox[0] + c.bbox[2]) / 2), math.floor((c.bbox[1] + c.bbox[3]) / 2)
+        bbox_c = find_bounding_rectangle((c_x, c_y), lines)
+        bboxes[bbox_c] += 1
+
+        u_x, u_y = c.bbox[2], c.bbox[3]
+        bbox_u = find_bounding_rectangle((u_x, u_y), lines)
+        bboxes[bbox_u] += 1
+
+        bbox = max(bboxes.items(), key=lambda q: q[1])[0]
 
         if bbox is None:
             continue

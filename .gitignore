@@ -1,7 +1,11 @@
 lib/
 venv/
 tabula/
+
 data/raw/*
+data/scrapped/*
+data/htmled/*
+
 *.bat
 .ipynb_checkpoints
 .idea/

@@ -27,7 +27,7 @@ def stitch_together_tables(tables):
                         len(line) >= 3 and
                         line[0] == "" and
                         len(main_table) > 0):
-                for i in range(len(main_table[-1])):
+                for i in range(min(len(main_table[-1]), len(line))):
                     main_table[-1][i] += line[i]
             else:
                 main_table.append(line)

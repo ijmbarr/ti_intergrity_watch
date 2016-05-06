@@ -91,7 +91,12 @@ def page_to_table(page_layout):
         bbox_u = find_bounding_rectangle((u_x, u_y), lines)
         bboxes[bbox_u] += 1
 
-        bbox = max(bboxes.items(), key=lambda q: q[1])[0]
+        # if all values are in different boxes, default to character center.
+        # otherwise choose the majority.
+        if max(bboxes.values()) == 1:
+            bbox = bbox_c
+        else:
+            bbox = max(bboxes.items(), key=lambda x: x[1])[0]
 
         if bbox is None:
             continue
@@ -104,7 +109,7 @@ def page_to_table(page_layout):
 
     # look for empty bounding boxes by scanning
     # over a grid of values on the page
-    for x in range(100, 500, 50):
+    for x in range(100, 550, 10):
         for y in range(50, 800, 10):
             bbox = find_bounding_rectangle((x, y), lines)
 

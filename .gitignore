@@ -5,3 +5,4 @@ data/raw/*
 *.bat
 .ipynb_checkpoints
 .idea/
+*~
